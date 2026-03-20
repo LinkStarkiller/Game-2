@@ -13,6 +13,43 @@
     <div id="setup-screen" class="text-center">
       <h2 class="text-2xl font-black text-white mb-2 tracking-wider">SYSTEM CALIBRATION</h2>
       <input type="text" id="handyKey" placeholder="Connection Key" class="w-full bg-slate-900 text-white border border-slate-600 rounded-lg p-3 mb-4 focus:outline-none focus:border-indigo-500 transition">
+      
+      <div class="mb-6 text-left bg-slate-900 p-5 rounded-lg border border-slate-700 shadow-inner">
+        <h3 class="text-sm font-bold text-slate-400 mb-4 uppercase tracking-widest border-b border-slate-700 pb-2">Penalty Config</h3>
+        
+        <div class="mb-4">
+          <label class="block text-xs text-slate-400 mb-1 flex justify-between">
+            <span>Standard Hit Speed</span>
+            <span id="lbl-hit-speed" class="text-emerald-400 font-mono">70%</span>
+          </label>
+          <input type="range" id="cfg-hit-speed" min="10" max="100" value="70" class="w-full accent-indigo-500" oninput="updateLabels()">
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-xs text-slate-400 mb-1 flex justify-between">
+            <span>Standard Hit Duration</span>
+            <span id="lbl-hit-dur" class="text-emerald-400 font-mono">2.5s</span>
+          </label>
+          <input type="range" id="cfg-hit-dur" min="0.5" max="5" step="0.5" value="2.5" class="w-full accent-indigo-500" oninput="updateLabels()">
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-xs text-slate-400 mb-1 flex justify-between">
+            <span>Game Over Speed</span>
+            <span id="lbl-fatal-speed" class="text-rose-400 font-mono">100%</span>
+          </label>
+          <input type="range" id="cfg-fatal-speed" min="10" max="100" value="100" class="w-full accent-rose-500" oninput="updateLabels()">
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1 flex justify-between">
+            <span>Game Over Duration</span>
+            <span id="lbl-fatal-dur" class="text-rose-400 font-mono">4.0s</span>
+          </label>
+          <input type="range" id="cfg-fatal-dur" min="1" max="10" step="0.5" value="4" class="w-full accent-rose-500" oninput="updateLabels()">
+        </div>
+      </div>
+
       <button onclick="connectHandy()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-200">SAVE & CONNECT</button>
       <p id="setup-status" class="mt-4 text-red-400 text-sm font-semibold"></p>
     </div>
@@ -20,181 +57,10 @@
     <div id="game-screen" class="hidden text-center">
       
       <div class="flex justify-start mb-4">
-        <button onclick="openSettings()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition">⚙️ Change Key</button>
+        <button onclick="openSettings()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition">⚙️ Change Settings</button>
       </div>
 
       <div class="flex justify-between items-center mb-4 px-4">
         <div class="text-left">
           <p class="text-sm text-slate-400 uppercase tracking-wide">Kevin's HP</p>
-          <p id="player-stat" class="text-4xl font-black text-emerald-400">5</p>
-        </div>
-        <div class="text-right">
-          <p class="text-sm text-slate-400 uppercase tracking-wide">Boss HP</p>
-          <p id="enemy-stat" class="text-4xl font-black text-rose-400">5</p>
-        </div>
-      </div>
-
-      <div class="flex justify-center mb-6 h-[500px] bg-slate-900 rounded-lg overflow-hidden border border-slate-700 relative shadow-inner">
-        <img id="battle-scene" src="assets/boss_idle.png" alt="Battle Scene" class="w-full h-full object-contain transition-opacity duration-200">
-      </div>
-
-      <div id="controls-rps" class="grid grid-cols-3 gap-4 mb-6">
-        <button id="btn-rock" onclick="playRound('rock')" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white text-2xl font-bold py-5 rounded-xl shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">🪨</button>
-        <button id="btn-paper" onclick="playRound('paper')" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white text-2xl font-bold py-5 rounded-xl shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">📄</button>
-        <button id="btn-scissors" onclick="playRound('scissors')" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white text-2xl font-bold py-5 rounded-xl shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">✂️</button>
-      </div>
-
-      <div id="battle-log" class="bg-black text-emerald-400 font-mono text-base p-4 rounded-lg border border-slate-700 min-h-[80px] text-left shadow-inner">
-        <em>> The Boss is waiting...</em>
-      </div>
-
-    </div>
-  </div>
-
-  <script>
-    // --- State & Variables ---
-    let connectionKey = localStorage.getItem('savedHandyKey') || '';
-    
-    let playerHealth = 5;
-    let enemyHealth = 5;
-
-    const bossStates = [
-      'assets/boss_defeat.png', 
-      'assets/boss_dmg_4.png',  
-      'assets/boss_dmg_3.png',  
-      'assets/boss_dmg_2.png',  
-      'assets/boss_dmg_1.png',  
-      'assets/boss_idle.png'    
-    ];
-
-    if (connectionKey) {
-      document.getElementById('handyKey').value = connectionKey;
-      showGameScreen();
-    }
-
-    // --- UI Flow ---
-    function connectHandy() {
-      const keyInput = document.getElementById('handyKey').value.trim();
-      if (keyInput) {
-        connectionKey = keyInput;
-        localStorage.setItem('savedHandyKey', connectionKey); 
-        showGameScreen();
-        document.getElementById('battle-scene').src = bossStates[enemyHealth];
-        logMessage(`System connected. The Boss approaches.`);
-      } else {
-        document.getElementById('setup-status').innerText = "Please enter a valid key.";
-      }
-    }
-
-    function showGameScreen() {
-      document.getElementById('setup-screen').classList.add('hidden');
-      document.getElementById('game-screen').classList.remove('hidden');
-      updateStats();
-    }
-
-    function openSettings() {
-      document.getElementById('setup-screen').classList.remove('hidden');
-      document.getElementById('game-screen').classList.add('hidden');
-    }
-
-    function logMessage(msg) {
-      document.getElementById('battle-log').innerHTML = `> ${msg}`;
-    }
-
-    function updateStats() {
-      document.getElementById('player-stat').innerText = playerHealth;
-      document.getElementById('enemy-stat').innerText = enemyHealth;
-    }
-
-    function toggleButtons(disabled) {
-      document.getElementById('btn-rock').disabled = disabled;
-      document.getElementById('btn-paper').disabled = disabled;
-      document.getElementById('btn-scissors').disabled = disabled;
-    }
-
-    // --- Core Game Logic ---
-    function playRound(playerMove) {
-      toggleButtons(true); 
-      
-      const moves = ['rock', 'paper', 'scissors'];
-      const enemyMove = moves[Math.floor(Math.random() * moves.length)];
-      const battleScene = document.getElementById('battle-scene');
-      
-      let resetDelay = 3500; // Default wait time for hits to show
-
-      if (playerMove === enemyMove) {
-        battleScene.src = 'assets/tie.png';
-        logMessage(`Boss used ${enemyMove.toUpperCase()}. CLASH! It's a tie. Tension builds...`);
-        triggerHandy(20, 100); // Fire and forget (No 'await')
-        resetDelay = 1500; // Ties reset much faster so you don't get stuck waiting
-      } 
-      else if (
-        (playerMove === 'rock' && enemyMove === 'scissors') ||
-        (playerMove === 'paper' && enemyMove === 'rock') ||
-        (playerMove === 'scissors' && enemyMove === 'paper')
-      ) {
-        enemyHealth -= 1;
-        battleScene.src = 'assets/kevin_win.png'; 
-        logMessage(`Boss used ${enemyMove.toUpperCase()}. Critical hit! Boss takes damage.`);
-      } 
-      else {
-        playerHealth -= 1;
-        battleScene.src = 'assets/boss_win.png'; 
-        
-        if (playerHealth > 0) {
-          logMessage(`Boss used ${enemyMove.toUpperCase()}. You got hit! Physical penalty engaged.`);
-          triggerHandy(80, 250); 
-        } else {
-          logMessage(`Boss used ${enemyMove.toUpperCase()}. HP depleted. FATAL ERROR. MAXIMUM PENALTY.`);
-          triggerHandy(100, 400); 
-        }
-      }
-
-      updateStats();
-
-      // Reset Scene
-      setTimeout(() => {
-        if (playerHealth <= 0) {
-          playerHealth = 5;
-          enemyHealth = 5;
-          updateStats();
-          logMessage(`You were defeated. Game Reset. Ready for round 2.`);
-          battleScene.src = bossStates[enemyHealth]; 
-        } else if (enemyHealth <= 0) {
-          playerHealth = 5;
-          enemyHealth = 5;
-          updateStats();
-          logMessage(`Boss defeated! Flawless victory. A new challenger approaches...`);
-          battleScene.src = bossStates[enemyHealth]; 
-        } else {
-          // If it was a tie, it just logs "Awaiting move". If it was a hit, it logs "Boss recovers".
-          if (playerMove === enemyMove) {
-            logMessage(`Awaiting your next move...`);
-          } else {
-            logMessage(`The Boss recovers. Awaiting your move...`);
-          }
-          battleScene.src = bossStates[enemyHealth]; 
-        }
-
-        toggleButtons(false); 
-
-      }, resetDelay); 
-    }
-
-    // --- Hardware Integration ---
-    async function triggerHandy(positionPct, velocity) {
-      if (!connectionKey) return;
-      const url = 'https://www.handyfeeling.com/api/handy/v2/hdsp/xpva';
-      try {
-        await fetch(url, {
-          method: 'PUT',
-          headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Connection-Key': connectionKey },
-          body: JSON.stringify({ positionPercentage: positionPct, velocityAbsolute: velocity })
-        });
-      } catch (error) {
-        console.error("Hardware connection failed:", error);
-      }
-    }
-  </script>
-</body>
-</html>
+          <p id="player-stat" class="text-4xl font-black text-emerald-400
