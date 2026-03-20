@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPS Challenge</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4 font-sans">
+
+  <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full border border-slate-700">
+    
+    <div id="setup-screen" class="text-center">
+      <h2 class="text-2xl font-black text-white mb-2 tracking-wider">SYSTEM CALIBRATION</h2>
+      <p class="text-slate-400 mb-6 text-sm">Enter your device connection key to establish a secure link.</p>
+      
+      <input 
+        type="text" 
+        id="handyKey" 
+        placeholder="Connection Key (e.g. 12345678...)" 
+        class="w-full bg-slate-900 text-white border border-slate-600 rounded-lg p-3 mb-4 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+      >
+      
+      <button 
+        onclick="connectHandy()" 
+        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-200"
+      >
+        SAVE & CONNECT
+      </button>
+      <p id="setup-status" class="mt-4 text-red-400 text-sm font-semibold"></p>
+    </div>
+
+    <div id="game-screen" class="hidden text-center">
+      
+      <div class="flex justify-start mb-6">
+        <button 
+          onclick="openSettings()" 
+          class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition"
+        >
+          ⚙️ Change Key
+        </button>
+      </div>
+
+      <div class="flex justify-between items-center mb-8 px-2">
+        <div class="text-left">
+          <p class="text-xs text-slate-400 uppercase tracking-wide">Kevin's HP</p>
+          <p id="player-stat" class="text-3xl font-black text-emerald-400">3</p>
+        </div>
+        <div class="text-right">
+          <p class="text-xs text-slate-400 uppercase tracking-wide">Boss HP</p>
+          <p id="enemy-stat" class="text-3xl font-black text-rose-400">3</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 mb-8">
+        <button id="btn-rock" onclick="playRound('rock')" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white font-bold py-4 rounded-xl shadow transition disabled:opacity-50 disabled:cursor-not-allowed">
+          🪨
+        </button>
+        <button id="btn-paper" onclick="playRound('paper')" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white font-bold py-4 rounded-xl shadow transition disabled:opacity-50 disabled:cursor-not-allowed">
+          📄
+        </button>
+        <button id="btn-scissors" onclick="playRound('scissors')" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white font-bold py-4 rounded-xl shadow transition disabled:opacity-50 disabled:cursor-not-allowed">
+          ✂️
+        </button>
+      </div>
+
+      <div id="battle-log" class="bg-black text-emerald-400 font-mono text-sm p-4 rounded-lg border border-slate-700 min-h-[100px] text-left shadow-inner">
+        <em>> Awaiting your move...</em>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // --- State & Variables ---
+    let connectionKey = localStorage.getItem('savedHandyKey') || '';
+    let playerHealth = 3;
+    let enemyHealth = 3;
+
+    // Auto-load if key exists
+    if (connectionKey) {
+      document.getElementById('handyKey').value = connectionKey;
+      showGameScreen();
+    }
+
+    // --- UI Flow ---
+    function connectHandy() {
+      const keyInput = document.getElementById('handyKey').value.trim();
+      if (keyInput) {
+        connectionKey = keyInput;
+        localStorage.setItem('savedHandyKey', connectionKey); 
+        showGameScreen();
+        logMessage(`System connected. Device key synced.`);
+      } else {
+        document.getElementById('setup-status').innerText = "Please enter a valid key.";
+      }
+    }
+
+    function showGameScreen() {
+      document.getElementById('setup-screen').classList.add('hidden');
+      document.getElementById('game-screen').classList.remove('hidden');
+    }
+
+    function openSettings() {
+      document.getElementById('setup-screen').classList.remove('hidden');
+      document.getElementById('game-screen').classList.add('hidden');
+    }
+
+    function logMessage(msg) {
+      document.getElementById('battle-log').innerHTML = `> ${msg}`;
+    }
+
+    function updateStats() {
+      document.getElementById('player-stat').innerText = playerHealth;
+      document.getElementById('enemy-stat').innerText = enemyHealth;
+    }
+
+    function toggleButtons(disabled) {
+      document.getElementById('btn-rock').disabled = disabled;
+      document.getElementById('btn-paper').disabled = disabled;
+      document.getElementById('btn-scissors').disabled = disabled;
+    }
+
+    // --- Core Game Loop ---
+    async function playRound(playerMove) {
+      toggleButtons(true); 
+      
+      const moves = ['rock', 'paper', 'scissors'];
+      const enemyMove = moves[Math.floor(Math.random() * moves.length)];
+      
+      if (playerMove === enemyMove) {
+        logMessage(`Enemy used ${enemyMove.toUpperCase()}. It's a clash! Tension builds...`);
+        await triggerHandy(20, 100); 
+      } 
+      else if (
+        (playerMove === 'rock' && enemyMove === 'scissors') ||
+        (playerMove === 'paper' && enemyMove === 'rock') ||
+        (playerMove === 'scissors' && enemyMove === 'paper')
+      ) {
+        enemyHealth -= 1;
+        logMessage(`Enemy used ${enemyMove.toUpperCase()}. Critical hit! Boss takes damage.`);
+      } 
+      else {
+        playerHealth -= 1;
+        
+        if (playerHealth > 0) {
+          logMessage(`Enemy used ${enemyMove.toUpperCase()}. You got hit! Physical penalty engaged.`);
+          await triggerHandy(80, 250); 
+        } else {
+          logMessage(`Enemy used ${enemyMove.toUpperCase()}. HP depleted. FATAL ERROR. MAXIMUM PENALTY.`);
+          await triggerHandy(100, 400); 
+          
+          setTimeout(() => {
+            playerHealth = 3;
+            enemyHealth = 3;
+            updateStats();
+            logMessage(`Game Reset. Ready for round 2.`);
+          }, 4000);
+        }
+      }
+
+      if (enemyHealth <= 0) {
+        logMessage(`Boss defeated! Flawless victory.`);
+        setTimeout(() => {
+          playerHealth = 3;
+          enemyHealth = 3;
+          updateStats();
+          logMessage(`A new challenger approaches...`);
+        }, 4000);
+      }
+
+      updateStats();
+      toggleButtons(false); 
+    }
+
+    // --- Hardware Integration ---
+    async function triggerHandy(positionPct, velocity) {
+      if (!connectionKey) return;
+      const url = 'https://www.handyfeeling.com/api/handy/v2/hdsp/xpva';
+      
+      try {
+        await fetch(url, {
+          method: 'PUT',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Connection-Key': connectionKey
+          },
+          body: JSON.stringify({
+            positionPercentage: positionPct, 
+            velocityAbsolute: velocity      
+          })
+        });
+      } catch (error) {
+        console.error("Hardware connection failed:", error);
+        logMessage("ERROR: Hardware sync failed. Check connection.");
+      }
+    }
+  </script>
+</body>
+</html>
