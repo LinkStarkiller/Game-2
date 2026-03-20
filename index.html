@@ -8,9 +8,7 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4 font-sans">
 
-  <div class="flex justify-center mb-6 h-80 bg-slate-900 rounded-lg overflow-hidden border border-slate-700 relative">
-        <img id="battle-scene" src="assets/idle.png" alt="Battle Scene" class="w-full h-full object-contain transition-opacity duration-200">
-      </div>
+  <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl max-w-lg w-full border border-slate-700">
     
     <div id="setup-screen" class="text-center">
       <h2 class="text-2xl font-black text-white mb-2 tracking-wider">SYSTEM CALIBRATION</h2>
@@ -28,16 +26,16 @@
       <div class="flex justify-between items-center mb-6 px-2">
         <div class="text-left">
           <p class="text-xs text-slate-400 uppercase tracking-wide">Kevin's HP</p>
-          <p id="player-stat" class="text-3xl font-black text-emerald-400">3</p>
+          <p id="player-stat" class="text-3xl font-black text-emerald-400">5</p>
         </div>
         <div class="text-right">
           <p class="text-xs text-slate-400 uppercase tracking-wide">Boss HP</p>
-          <p id="enemy-stat" class="text-3xl font-black text-rose-400">3</p>
+          <p id="enemy-stat" class="text-3xl font-black text-rose-400">5</p>
         </div>
       </div>
 
-      <div class="flex justify-center mb-6 h-48 bg-slate-900 rounded-lg overflow-hidden border border-slate-700 relative">
-        <img id="battle-scene" src="assets/idle.png" alt="Battle Scene" class="w-full h-full object-contain transition-opacity duration-200">
+      <div class="flex justify-center mb-6 h-80 bg-slate-900 rounded-lg overflow-hidden border border-slate-700 relative">
+        <img id="battle-scene" src="assets/boss_idle.png" alt="Battle Scene" class="w-full h-full object-contain transition-opacity duration-200">
       </div>
 
       <div id="controls-rps" class="grid grid-cols-3 gap-3 mb-6">
@@ -56,8 +54,20 @@
   <script>
     // --- State & Variables ---
     let connectionKey = localStorage.getItem('savedHandyKey') || '';
-    let playerHealth = 3;
-    let enemyHealth = 3;
+    
+    // Health for a 5-round victory
+    let playerHealth = 5;
+    let enemyHealth = 5;
+
+    // Array linking Enemy Health to specific damage art files
+    const bossStates = [
+      'assets/boss_defeat.png', // Index 0: 0 HP
+      'assets/boss_dmg_4.png',  // Index 1: 1 HP 
+      'assets/boss_dmg_3.png',  // Index 2: 2 HP
+      'assets/boss_dmg_2.png',  // Index 3: 3 HP
+      'assets/boss_dmg_1.png',  // Index 4: 4 HP
+      'assets/boss_idle.png'    // Index 5: 5 HP (Full Health)
+    ];
 
     // Auto-load
     if (connectionKey) {
@@ -72,6 +82,9 @@
         connectionKey = keyInput;
         localStorage.setItem('savedHandyKey', connectionKey); 
         showGameScreen();
+        
+        // Ensure the boss starts with the correct full health image
+        document.getElementById('battle-scene').src = bossStates[enemyHealth];
         logMessage(`System connected. The Boss approaches.`);
       } else {
         document.getElementById('setup-status').innerText = "Please enter a valid key.";
@@ -81,6 +94,7 @@
     function showGameScreen() {
       document.getElementById('setup-screen').classList.add('hidden');
       document.getElementById('game-screen').classList.remove('hidden');
+      updateStats();
     }
 
     function openSettings() {
@@ -105,13 +119,13 @@
 
     // --- Core Game Logic vs CPU ---
     async function playRound(playerMove) {
-      toggleButtons(true); // Lock controls during animation
+      toggleButtons(true); 
       
       const moves = ['rock', 'paper', 'scissors'];
       const enemyMove = moves[Math.floor(Math.random() * moves.length)];
       const battleScene = document.getElementById('battle-scene');
       
-      // 1. Calculate Winner and Update Art/Log
+      // 1. Calculate Winner and Flash the Action Art
       if (playerMove === enemyMove) {
         battleScene.src = 'assets/tie.png';
         logMessage(`Boss used ${enemyMove.toUpperCase()}. CLASH! It's a tie. Tension builds...`);
@@ -123,12 +137,12 @@
         (playerMove === 'scissors' && enemyMove === 'paper')
       ) {
         enemyHealth -= 1;
-        battleScene.src = 'assets/kevin_win.png';
+        battleScene.src = 'assets/kevin_win.png'; // Show your attack connecting
         logMessage(`Boss used ${enemyMove.toUpperCase()}. Critical hit! Boss takes damage.`);
       } 
       else {
         playerHealth -= 1;
-        battleScene.src = 'assets/boss_win.png';
+        battleScene.src = 'assets/boss_win.png'; // Show the boss hitting you
         
         if (playerHealth > 0) {
           logMessage(`Boss used ${enemyMove.toUpperCase()}. You got hit! Physical penalty engaged.`);
@@ -141,44 +155,14 @@
 
       updateStats();
 
-      // 2. Reset Scene after a short delay
+      // 2. Reset Scene to the correct Damage State
       setTimeout(() => {
-        // Handle Game Over or Victory resets
         if (playerHealth <= 0) {
-          playerHealth = 3;
-          enemyHealth = 3;
+          playerHealth = 5;
+          enemyHealth = 5;
           updateStats();
           logMessage(`You were defeated. Game Reset. Ready for round 2.`);
+          battleScene.src = bossStates[enemyHealth]; // Resets to full health image
         } else if (enemyHealth <= 0) {
-          playerHealth = 3;
-          enemyHealth = 3;
-          updateStats();
-          logMessage(`Boss defeated! Flawless victory. A new challenger approaches...`);
-        } else {
-          logMessage(`The Boss recovers. Awaiting your move...`);
-        }
-
-        // Return to idle state
-        battleScene.src = 'assets/idle.png';
-        toggleButtons(false); // Unlock controls
-
-      }, 3500); // 3.5 seconds delay before the next round can start
-    }
-
-    // --- Hardware Integration ---
-    async function triggerHandy(positionPct, velocity) {
-      if (!connectionKey) return;
-      const url = 'https://www.handyfeeling.com/api/handy/v2/hdsp/xpva';
-      try {
-        await fetch(url, {
-          method: 'PUT',
-          headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Connection-Key': connectionKey },
-          body: JSON.stringify({ positionPercentage: positionPct, velocityAbsolute: velocity })
-        });
-      } catch (error) {
-        console.error("Hardware connection failed:", error);
-      }
-    }
-  </script>
-</body>
-</html>
+          playerHealth = 5;
+          enemyHealth = 5;
