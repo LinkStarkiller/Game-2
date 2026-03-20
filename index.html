@@ -30,7 +30,7 @@
             <span>Standard Hit Duration</span>
             <span id="lbl-hit-dur" class="text-emerald-400 font-mono">2.5s</span>
           </label>
-          <input type="range" id="cfg-hit-dur" min="0.5" max="5" step="0.5" value="2.5" class="w-full accent-indigo-500" oninput="updateLabels()">
+          <input type="range" id="cfg-hit-dur" min="0.5" max="10" step="0.5" value="2.5" class="w-full accent-indigo-500" oninput="updateLabels()">
         </div>
         
         <div class="mb-4">
@@ -46,7 +46,7 @@
             <span>Game Over Duration</span>
             <span id="lbl-fatal-dur" class="text-rose-400 font-mono">4.0s</span>
           </label>
-          <input type="range" id="cfg-fatal-dur" min="1" max="10" step="0.5" value="4" class="w-full accent-rose-500" oninput="updateLabels()">
+          <input type="range" id="cfg-fatal-dur" min="1" max="15" step="0.5" value="4" class="w-full accent-rose-500" oninput="updateLabels()">
         </div>
       </div>
 
@@ -63,4 +63,306 @@
       <div class="flex justify-between items-center mb-4 px-4">
         <div class="text-left">
           <p class="text-sm text-slate-400 uppercase tracking-wide">Kevin's HP</p>
-          <p id="player-stat" class="text-4xl font-black text-emerald-400
+          <p id="player-stat" class="text-4xl font-black text-emerald-400">5</p>
+        </div>
+        <div class="text-right">
+          <p class="text-sm text-slate-400 uppercase tracking-wide">Boss HP</p>
+          <p id="enemy-stat" class="text-4xl font-black text-rose-400">5</p>
+        </div>
+      </div>
+
+      <div class="flex justify-center mb-6 h-[500px] bg-slate-900 rounded-lg overflow-hidden border border-slate-700 relative shadow-inner">
+        <img id="battle-scene" src="assets/boss_idle.png" alt="Battle Scene" class="w-full h-full object-contain transition-opacity duration-200">
+      </div>
+
+      <div id="penalty-ui" class="hidden mb-6 bg-slate-900 p-4 rounded-xl border-2 border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.4)] text-left relative overflow-hidden">
+        <div class="absolute inset-0 bg-rose-500 opacity-10 animate-pulse pointer-events-none"></div>
+        
+        <h3 class="text-rose-500 font-black text-sm uppercase tracking-widest mb-3 flex items-center gap-2">
+          <span class="animate-ping h-2 w-2 bg-rose-500 rounded-full inline-block"></span> 
+          HARDWARE PENALTY ACTIVE
+        </h3>
+        
+        <div class="mb-3 relative z-10">
+          <div class="flex justify-between text-xs text-slate-300 mb-1 font-bold">
+            <span>MOTOR INTENSITY</span>
+            <span id="meter-speed-text" class="text-rose-400 font-mono">100%</span>
+          </div>
+          <div class="w-full bg-slate-800 rounded-full h-3 border border-slate-700">
+            <div id="meter-speed-bar" class="bg-gradient-to-r from-orange-500 to-rose-600 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="relative z-10">
+          <div class="flex justify-between text-xs text-slate-300 mb-1 font-bold">
+            <span>TIME REMAINING</span>
+            <span id="meter-time-text" class="text-rose-400 font-mono">0.0s</span>
+          </div>
+          <div class="w-full bg-slate-800 rounded-full h-3 border border-slate-700">
+            <div id="meter-time-bar" class="bg-rose-500 h-full rounded-full transition-all ease-linear" style="width: 100%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="controls-rps" class="grid grid-cols-3 gap-4 mb-6">
+        <button id="btn-rock" onclick="playRound('rock')" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white text-2xl font-bold py-5 rounded-xl shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">🪨</button>
+        <button id="btn-paper" onclick="playRound('paper')" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white text-2xl font-bold py-5 rounded-xl shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">📄</button>
+        <button id="btn-scissors" onclick="playRound('scissors')" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white text-2xl font-bold py-5 rounded-xl shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">✂️</button>
+      </div>
+
+      <div id="battle-log" class="bg-black text-emerald-400 font-mono text-base p-4 rounded-lg border border-slate-700 min-h-[80px] text-left shadow-inner">
+        <em>> The Boss is waiting...</em>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // --- State & Variables ---
+    let connectionKey = localStorage.getItem('savedHandyKey') || '';
+    
+    let penHitSpeed = parseInt(localStorage.getItem('cfgHitSpeed')) || 70;
+    let penHitDur = parseFloat(localStorage.getItem('cfgHitDur')) || 2.5;
+    let penFatalSpeed = parseInt(localStorage.getItem('cfgFatalSpeed')) || 100;
+    let penFatalDur = parseFloat(localStorage.getItem('cfgFatalDur')) || 4.0;
+    
+    let playerHealth = 5;
+    let enemyHealth = 5;
+
+    const bossStates = [
+      'assets/boss_defeat.png', 
+      'assets/boss_dmg_4.png',  
+      'assets/boss_dmg_3.png',  
+      'assets/boss_dmg_2.png',  
+      'assets/boss_dmg_1.png',  
+      'assets/boss_idle.png'    
+    ];
+
+    if (connectionKey) {
+      document.getElementById('handyKey').value = connectionKey;
+    }
+    document.getElementById('cfg-hit-speed').value = penHitSpeed;
+    document.getElementById('cfg-hit-dur').value = penHitDur;
+    document.getElementById('cfg-fatal-speed').value = penFatalSpeed;
+    document.getElementById('cfg-fatal-dur').value = penFatalDur;
+    updateLabels(); 
+
+    function updateLabels() {
+      document.getElementById('lbl-hit-speed').innerText = document.getElementById('cfg-hit-speed').value + '%';
+      document.getElementById('lbl-hit-dur').innerText = parseFloat(document.getElementById('cfg-hit-dur').value).toFixed(1) + 's';
+      document.getElementById('lbl-fatal-speed').innerText = document.getElementById('cfg-fatal-speed').value + '%';
+      document.getElementById('lbl-fatal-dur').innerText = parseFloat(document.getElementById('cfg-fatal-dur').value).toFixed(1) + 's';
+    }
+
+    // --- 1. Connection Handshake ---
+    async function connectHandy() {
+      const keyInput = document.getElementById('handyKey').value.trim();
+      if (!keyInput) {
+        document.getElementById('setup-status').innerText = "Please enter a valid key.";
+        return;
+      }
+
+      penHitSpeed = parseInt(document.getElementById('cfg-hit-speed').value);
+      penHitDur = parseFloat(document.getElementById('cfg-hit-dur').value);
+      penFatalSpeed = parseInt(document.getElementById('cfg-fatal-speed').value);
+      penFatalDur = parseFloat(document.getElementById('cfg-fatal-dur').value);
+
+      localStorage.setItem('cfgHitSpeed', penHitSpeed);
+      localStorage.setItem('cfgHitDur', penHitDur);
+      localStorage.setItem('cfgFatalSpeed', penFatalSpeed);
+      localStorage.setItem('cfgFatalDur', penFatalDur);
+
+      document.getElementById('setup-status').innerText = "Pinging server... Please wait.";
+      document.getElementById('setup-status').className = "mt-4 text-yellow-400 text-sm font-semibold";
+      
+      try {
+        const checkRes = await fetch('https://www.handyfeeling.com/api/handy/v2/connected', {
+          headers: { 'X-Connection-Key': keyInput }
+        });
+        const checkData = await checkRes.json();
+        
+        if (!checkData.connected) {
+          document.getElementById('setup-status').innerText = "Device offline. Check Wi-Fi and Key.";
+          document.getElementById('setup-status').className = "mt-4 text-rose-500 text-sm font-semibold";
+          return;
+        }
+
+        await fetch('https://www.handyfeeling.com/api/handy/v2/mode', {
+          method: 'PUT',
+          headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Connection-Key': keyInput },
+          body: JSON.stringify({ mode: 0 })
+        });
+
+        connectionKey = keyInput;
+        localStorage.setItem('savedHandyKey', connectionKey); 
+        
+        showGameScreen();
+        document.getElementById('battle-scene').src = bossStates[enemyHealth];
+        logMessage(`System connected securely. The Boss approaches.`);
+        
+      } catch (error) {
+        document.getElementById('setup-status').innerText = "Network Error. Check console.";
+        document.getElementById('setup-status').className = "mt-4 text-rose-500 text-sm font-semibold";
+      }
+    }
+
+    // --- 2. Live Visual Penalty Mechanic ---
+    async function punishPlayer(speedPercent, durationMs) {
+      // 1. Trigger the UI Dashboard
+      const penaltyUI = document.getElementById('penalty-ui');
+      const speedBar = document.getElementById('meter-speed-bar');
+      const speedText = document.getElementById('meter-speed-text');
+      const timeBar = document.getElementById('meter-time-bar');
+      const timeText = document.getElementById('meter-time-text');
+      
+      penaltyUI.classList.remove('hidden');
+      
+      // Set Intensity 
+      speedBar.style.width = speedPercent + '%';
+      speedText.innerText = speedPercent + '%';
+      
+      // Set up the draining duration bar
+      timeBar.style.transitionDuration = '0s'; // Reset
+      timeBar.style.width = '100%';
+      timeText.innerText = (durationMs / 1000).toFixed(1) + 's';
+      
+      // Force CSS reflow so the transition works
+      void timeBar.offsetWidth; 
+      
+      // Animate the bar shrinking to 0
+      timeBar.style.transitionDuration = durationMs + 'ms';
+      timeBar.style.width = '0%';
+
+      // Animate the text counting down
+      let timeLeft = durationMs;
+      const countdownInterval = setInterval(() => {
+        timeLeft -= 100;
+        if (timeLeft <= 0) {
+          timeLeft = 0;
+          clearInterval(countdownInterval);
+        }
+        timeText.innerText = (timeLeft / 1000).toFixed(1) + 's';
+      }, 100);
+
+      // 2. Trigger the actual Hardware API
+      if (connectionKey) {
+        const headers = { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Connection-Key': connectionKey };
+        try {
+          await fetch('https://www.handyfeeling.com/api/handy/v2/hamp/velocity', { method: 'PUT', headers: headers, body: JSON.stringify({ velocity: speedPercent }) });
+          await fetch('https://www.handyfeeling.com/api/handy/v2/hamp/start', { method: 'PUT', headers: headers });
+          
+          await new Promise(r => setTimeout(r, durationMs));
+          
+          await fetch('https://www.handyfeeling.com/api/handy/v2/hamp/stop', { method: 'PUT', headers: headers });
+        } catch (err) {
+          console.error("Hardware connection failed:", err);
+        }
+      } else {
+        // If testing without device, just wait out the timer
+        await new Promise(r => setTimeout(r, durationMs)); 
+      }
+
+      // 3. Hide the dashboard when finished
+      penaltyUI.classList.add('hidden');
+    }
+
+    // --- 3. UI Flow Helpers ---
+    function showGameScreen() {
+      document.getElementById('setup-screen').classList.add('hidden');
+      document.getElementById('game-screen').classList.remove('hidden');
+      updateStats();
+    }
+
+    function openSettings() {
+      document.getElementById('setup-screen').classList.remove('hidden');
+      document.getElementById('game-screen').classList.add('hidden');
+      document.getElementById('setup-status').innerText = "";
+    }
+
+    function logMessage(msg) {
+      document.getElementById('battle-log').innerHTML = `> ${msg}`;
+    }
+
+    function updateStats() {
+      document.getElementById('player-stat').innerText = playerHealth;
+      document.getElementById('enemy-stat').innerText = enemyHealth;
+    }
+
+    function toggleButtons(disabled) {
+      document.getElementById('btn-rock').disabled = disabled;
+      document.getElementById('btn-paper').disabled = disabled;
+      document.getElementById('btn-scissors').disabled = disabled;
+    }
+
+    // --- 4. Core Game Logic ---
+    function playRound(playerMove) {
+      toggleButtons(true); 
+      
+      const moves = ['rock', 'paper', 'scissors'];
+      const enemyMove = moves[Math.floor(Math.random() * moves.length)];
+      const battleScene = document.getElementById('battle-scene');
+      
+      let resetDelay = 3500; 
+
+      if (playerMove === enemyMove) {
+        battleScene.src = 'assets/tie.png';
+        logMessage(`Boss used ${enemyMove.toUpperCase()}. CLASH! Tension builds...`);
+        punishPlayer(30, 1000); 
+        resetDelay = Math.max(1500, 1000 + 500); // Wait until 0.5s after penalty ends
+      } 
+      else if (
+        (playerMove === 'rock' && enemyMove === 'scissors') ||
+        (playerMove === 'paper' && enemyMove === 'rock') ||
+        (playerMove === 'scissors' && enemyMove === 'paper')
+      ) {
+        enemyHealth -= 1;
+        battleScene.src = 'assets/kevin_win.png'; 
+        logMessage(`Boss used ${enemyMove.toUpperCase()}. Critical hit! Boss takes damage.`);
+        resetDelay = 3500;
+      } 
+      else {
+        playerHealth -= 1;
+        battleScene.src = 'assets/boss_win.png'; 
+        
+        if (playerHealth > 0) {
+          logMessage(`Boss used ${enemyMove.toUpperCase()}. You got hit! Physical penalty engaged.`);
+          let durationMs = penHitDur * 1000;
+          punishPlayer(penHitSpeed, durationMs); 
+          resetDelay = Math.max(3500, durationMs + 500); // Don't reset before motor stops
+        } else {
+          logMessage(`Boss used ${enemyMove.toUpperCase()}. HP depleted. FATAL ERROR. MAXIMUM PENALTY.`);
+          let durationMs = penFatalDur * 1000;
+          punishPlayer(penFatalSpeed, durationMs); 
+          resetDelay = Math.max(4000, durationMs + 500);
+        }
+      }
+
+      updateStats();
+
+      setTimeout(() => {
+        if (playerHealth <= 0) {
+          playerHealth = 5;
+          enemyHealth = 5;
+          updateStats();
+          logMessage(`You were defeated. Game Reset. Ready for round 2.`);
+          battleScene.src = bossStates[enemyHealth]; 
+        } else if (enemyHealth <= 0) {
+          playerHealth = 5;
+          enemyHealth = 5;
+          updateStats();
+          logMessage(`Boss defeated! Flawless victory. A new challenger approaches...`);
+          battleScene.src = bossStates[enemyHealth]; 
+        } else {
+          if (playerMove === enemyMove) {
+            logMessage(`Awaiting your next move...`);
+          } else {
+            logMessage(`The Boss recovers. Awaiting your move...`);
+          }
+          battleScene.src = bossStates[enemyHealth]; 
+        }
+        toggleButtons(false); 
+      }, resetDelay); 
+    }
+  </script>
+</body>
+</html>
